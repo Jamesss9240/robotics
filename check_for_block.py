@@ -10,11 +10,9 @@ import tkinter as tk
 from tkinter import filedialog
 
 def take_picture():
-    cv2.namedWindow("Camera")
+    #cv2.namedWindow("Camera")
     cap = cv2.VideoCapture(1)  
-    if not cap.isOpened():
-        print("Failed to open camera")
-        return None
+    
         
     ret, frame = cap.read()
     cap.release() 
@@ -62,10 +60,10 @@ def rotateToAudio(Lmic, Rmic, Fmic, Bmic, heading):
     
 def pictest():
     # Camera and object parameters
-    camera_fov = 70
+    camera_fov = 90
     KNOWN_BALL_DIAMETER = 100
   
-    cv2.namedWindow("Block Detection")
+    #cv2.namedWindow("Block Detection")
     ball_found = False
     angle_to_turn = None
     
@@ -86,10 +84,7 @@ def pictest():
         hsv_params = model_data['hsv_params']
         color_mapping = model_data.get('color_mapping', {})
         
-        # Initialize the CNN model
-        # Rest of the code remains the same
-        
-        # Initialize the CNN model
+      
         class ConvNet(nn.Module):
             def __init__(self):
                 super(ConvNet, self).__init__()
@@ -251,7 +246,7 @@ def pictest():
             elif final_color == 'blue' and largest_blue is not None:
                 final_contour = largest_blue
         
-        return final_color, final_contour
+        return final_color, final_contour, cnn_confidence
     
     # Process images for ball detection
     for i in range(10):
@@ -311,7 +306,7 @@ def pictest():
         image_center_x = width // 2
         
         # Use hybrid model for detection
-        ball_color, ball_contour = hybrid_prediction(frame, hsv_params, model)
+        ball_color, ball_contour, cnn_confidence = hybrid_prediction(frame, hsv_params, model)
         
         # Process detection results
         ball_found = ball_contour is not None and ball_color != 'none'
@@ -356,7 +351,7 @@ def pictest():
                 angle_to_turn = abs(angle_to_turn)
             
             # Add text to image
-            text = f"{ball_color} ball: Turn {int(round(angle_to_turn))}° {turn_direction}"
+            text = f"{ball_color} ball: Turn {int(round(angle_to_turn))}° {turn_direction} confidence: = {cnn_confidence}"
             cv2.putText(display_frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_color, 2)
             cv2.putText(display_frame, f"Distance: {distance:.0f} mm", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_color, 2)
             
