@@ -59,7 +59,7 @@ def rotateToAudio(Lmic, Rmic, Fmic, Bmic, heading):
     return currenthead
     
 def pictest():
-    # Camera and object parameters
+    
     camera_fov = 90
     KNOWN_BALL_DIAMETER = 100
   
@@ -67,19 +67,18 @@ def pictest():
     ball_found = False
     angle_to_turn = None
     
-    # Ask user for input option
+    # give option for take picture or laod image(for debugging)
     option = int(input("Choose option (1: Take picture, 2: Load image): "))
     
-    # Set up device and load model
+    # loads model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model_path = './cnn_hsv_hybrid.pth'  # Path to the hybrid model
     
     try:
-        # Load the hybrid model with HSV parameters
-        # Add weights_only=False to fix the loading error
+        #load model
         model_data = torch.load(model_path, map_location=device, weights_only=False)
         
-        # Extract model state dict and HSV parameters
+        # extract parameters and model state dictionary
         model_state_dict = model_data['model_state_dict']
         hsv_params = model_data['hsv_params']
         color_mapping = model_data.get('color_mapping', {})
@@ -98,7 +97,7 @@ def pictest():
                     nn.BatchNorm2d(32),
                     nn.ReLU(),
                     nn.MaxPool2d(kernel_size=2, stride=2))
-                # Attention mechanism
+                #
                 self.attention = nn.Sequential(
                     nn.Conv2d(32, 1, kernel_size=1),
                     nn.Sigmoid()
@@ -106,14 +105,14 @@ def pictest():
                 self.fc = nn.Linear(8*8*32, 4)
                 
             def forward(self, x):
-                # Add batch dimension if input is 3D
+                # make sure batch is 3d to avoid errors
                 if x.dim() == 3:
-                    x = x.unsqueeze(0)  # Add batch dimension
+                    x = x.unsqueeze(0) 
                 
                 out = self.layer1(x)
                 out = self.layer2(out)
                 
-                # Apply attention (optional)
+       
                 # attention_mask = self.attention(out)
                 # out = out * attention_mask
                 
@@ -121,15 +120,15 @@ def pictest():
                 out = self.fc(out)
                 return out
                 
-        # Create and load model
+        #load model again
         model = ConvNet().to(device)
         model.load_state_dict(model_state_dict)
         model.eval()
         
-        print("Hybrid model loaded successfully!")
+        print("model loaded successfully")
     except Exception as e:
-        print(f"Error loading hybrid model: {e}")
-        print("Falling back to traditional HSV detection only")
+        print(f"error loading model  {e}")
+       
         model = None
         hsv_params = {
             'red': {
@@ -144,46 +143,45 @@ def pictest():
             }
         }
     
-    # Image processing transform
+    # process image
     transform = transforms.Compose([
         transforms.Resize((32, 32)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
     
-    # Define hybrid prediction function
+
     def hybrid_prediction(image, hsv_params, model=None):
-        # Convert OpenCV image to PIL for model input if needed
+        #convert to compatable format
         if isinstance(image, np.ndarray):
             pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         else:
             pil_image = image
             image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
         
-        # Create HSV image for color detection
+        
         hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
-        # Get HSV-based color detection
-        # Create masks for red (which wraps around the hue spectrum)
+        #create colour detection masks
         mask_red1 = cv2.inRange(hsv_img, hsv_params['red']['lower1'], hsv_params['red']['upper1'])
         mask_red2 = cv2.inRange(hsv_img, hsv_params['red']['lower2'], hsv_params['red']['upper2'])
         mask_red = cv2.bitwise_or(mask_red1, mask_red2)
         
-        # Create mask for blue
+    
         mask_blue = cv2.inRange(hsv_img, hsv_params['blue']['lower'], hsv_params['blue']['upper'])
         
-        # Apply morphological operations to reduce noise
+        # reduces image noise to improve accuracy
         kernel = np.ones((5, 5), np.uint8)
         mask_red = cv2.erode(mask_red, kernel, iterations=1)
         mask_red = cv2.dilate(mask_red, kernel, iterations=2)
         mask_blue = cv2.erode(mask_blue, kernel, iterations=1)
         mask_blue = cv2.dilate(mask_blue, kernel, iterations=2)
         
-        # Find contours
+        # helper for finding boundaries of object
         contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        # Find largest contours
+      
         largest_red = max(contours_red, key=cv2.contourArea, default=None) if contours_red else None
         largest_blue = max(contours_blue, key=cv2.contourArea, default=None) if contours_blue else None
         
@@ -191,7 +189,7 @@ def pictest():
         hsv_confidence = 0.0
         hsv_contour = None
         
-        # Determine color from HSV
+        # use the hsv to  detirimine colour
         red_area = cv2.contourArea(largest_red) if largest_red is not None else 0
         blue_area = cv2.contourArea(largest_blue) if largest_blue is not None else 0
         
@@ -204,13 +202,13 @@ def pictest():
             hsv_confidence = blue_area / (image.shape[0] * image.shape[1])
             hsv_contour = largest_blue
         
-        # If model is available, get CNN prediction
+        #use the cnn to reinforce this, and correct errors that the hsv prediction may have got
         cnn_color = 'none'
         cnn_confidence = 0.0
         
         if model is not None:
             try:
-                # Convert to tensor and get prediction
+                #conv image to tensor
                 image_tensor = transform(pil_image).unsqueeze(0).to(device)
                 
                 with torch.no_grad():
@@ -219,28 +217,29 @@ def pictest():
                     _, predicted = torch.max(outputs, 1)
                     predicted_idx = predicted.item()
                     
-                    # Map prediction to color (depends on your model's output mapping)
+                    #mapping for predictions
                     if predicted_idx == 0:
-                        cnn_color = 'blue'  # Adjust based on your model
+                        cnn_color = 'blue' 
                     elif predicted_idx == 2:  
-                        cnn_color = 'red'   # Adjust based on your model
+                        cnn_color = 'red'  
                     else:
                         cnn_color = 'none'
                         
-                    cnn_confidence = probabilities[predicted_idx].item()
+                    cnn_confidence = probabilities[predicted_idx].item() #confidence
             except Exception as e:
                 print(f"Error in CNN prediction: {e}")
         
-        # Combine HSV and CNN predictions
+      
+        
         final_color = 'none'
         final_contour = None
         
-        if hsv_confidence > 0.05:  # If HSV detection is confident
+        if hsv_confidence > 0.05:  
             final_color = hsv_color
             final_contour = hsv_contour
-        elif cnn_confidence > 0.7:  # If CNN is confident but HSV isn't
+        elif cnn_confidence > 0.7:  
             final_color = cnn_color
-            # If CNN detected a color but HSV didn't find a contour for that color
+          
             if final_color == 'red' and largest_red is not None:
                 final_contour = largest_red
             elif final_color == 'blue' and largest_blue is not None:
@@ -248,10 +247,10 @@ def pictest():
         
         return final_color, final_contour, cnn_confidence
     
-    # Process images for ball detection
+   
     for i in range(10):
         if option == 1:
-            # Take a picture with camera
+            #take picture
             try:
                 frame, image_file = take_picture()
                 if frame is None:
@@ -261,10 +260,10 @@ def pictest():
                 print(f"Error capturing image: {e}")
                 continue
         else:
-            # Option 2: Automatically select an image from the images folder
-            if i == 0:  # Only process one image
+  
+            if i == 0: 
                 try:
-                    # List all images in the images folder
+                    
                     images_folder = "images"
                     if not os.path.exists(images_folder):
                         print(f"Images folder '{images_folder}' not found. Creating it...")
@@ -294,31 +293,31 @@ def pictest():
                     print(f"Error loading image: {e}")
                     break
             else:
-                # We've already processed an image in the first iteration
+               
                 break
         
         if frame is None:
             print("No valid frame to process, skipping...")
             continue
             
-        # Get image dimensions
+       
         height, width, channels = frame.shape
         image_center_x = width // 2
         
-        # Use hybrid model for detection
+      
         ball_color, ball_contour, cnn_confidence = hybrid_prediction(frame, hsv_params, model)
         
-        # Process detection results
+     
         ball_found = ball_contour is not None and ball_color != 'none'
         
-        # Copy frame for visualization
+
         display_frame = frame.copy()
         
         if ball_found:
-            # Set highlight color based on detected color
-            highlight_color = (0, 255, 0) if ball_color == "red" else (0, 165, 255)  # Green for red, orange for blue
+        
+            highlight_color = (0, 255, 0) if ball_color == "red" else (0, 165, 255) 
             
-            # Calculate center of ball
+            
             M = cv2.moments(ball_contour)
             if M["m00"] != 0:
                 ball_center_x = int(M["m10"] / M["m00"])
@@ -328,40 +327,39 @@ def pictest():
                 ball_center_x = x + w // 2
                 ball_center_y = y + h // 2
             
-            # Draw bounding box
+            # draw rectangle around the ball
             x, y, w, h = cv2.boundingRect(ball_contour)
             cv2.rectangle(display_frame, (x, y), (x+w, y+h), highlight_color, 2)
             
-            # Draw center point
+            # draw centre
             cv2.circle(display_frame, (ball_center_x, ball_center_y), 5, (255, 255, 255), -1)
             
-            # Calculate angle to turn
+            # turn needed calculation
             focal_length = (width / 2) / math.tan(math.radians(camera_fov / 2))
             pixels_from_center = ball_center_x - image_center_x
             angle_to_turn = (pixels_from_center / (width/2)) * (camera_fov/2)
             turn_direction = 'right' if angle_to_turn > 0 else 'left'
             
-            # Calculate distance to ball
+            #calculate distance
             distance = (KNOWN_BALL_DIAMETER * focal_length) / w
             
-            # Format angle for display
+            
             if turn_direction == 'left':
                 angle_to_turn = -abs(angle_to_turn)
             else:
                 angle_to_turn = abs(angle_to_turn)
             
-            # Add text to image
+            #adds text info to image for debugging
             text = f"{ball_color} ball: Turn {int(round(angle_to_turn))}° {turn_direction} confidence: = {cnn_confidence}"
             cv2.putText(display_frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_color, 2)
             cv2.putText(display_frame, f"Distance: {distance:.0f} mm", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_color, 2)
             
             print(f"{ball_color.capitalize()} ball found in {image_file}! Width: {w}px, Turn {abs(angle_to_turn):.1f} degrees {turn_direction}, Distance: {distance:.0f}mm")
-            
-            # Save processed image
+          #save image
             output_dir = "processed_images"
             os.makedirs(output_dir, exist_ok=True)
             
-            # Format angle for filename
+         
             angle_str = f"{int(round(angle_to_turn))}"
             
             detection_path = os.path.join(output_dir, f"turn_{angle_str}deg_{ball_color}_{image_file}")
@@ -371,12 +369,12 @@ def pictest():
             cv2.putText(display_frame, "No ball detected", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             print(f"No ball detected in {image_file}")
         
-        # Show image
+ 
         cv2.imshow("Block Detection", display_frame)
-        cv2.waitKey(1000)  # Wait for 1 second
+        cv2.waitKey(1000)  #wait 1 second
     
     cv2.destroyAllWindows()
     return ball_found, angle_to_turn if ball_found else None
 
-# Call the function
+
 pictest()
