@@ -664,7 +664,7 @@ async def main():
                     command = bytearray()
                     command.append(com_claw_open)
                     send_data(command)
-                if transcribed_text == "claw close" or transcribed_text == "claw clamp" or transcribed_text == "grabber close" or transcribe_text == "grab":
+                if transcribed_text == "claw close" or transcribed_text == "claw clamp" or transcribed_text == "grabber close" or transcribed_text == "grab":
                     understood = True
                     print("claw close")
                     response_text = "Closing claw"
