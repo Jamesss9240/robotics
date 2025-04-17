@@ -516,7 +516,7 @@ def detect_commands(text):
                 action = token_lemma
 
             # Look for directional keywords
-            if token_text in ["forward", "forwards", "backward", "backwards", "reverse", "turn left", "turn right", "left","right"]:
+            if token_text in ["forward", "forwards", "backward", "backwards", "reverse", "turn left", "turn right", "left","right", "arm","set arm position", "set arm"]:
                 direction = token_text
 
             # Look for numeric tokens
@@ -760,7 +760,7 @@ async def main():
                             v = 0
                         command.extend(v.to_bytes(2, byteorder='big', signed=False))
                         send_data(command)
-                    if d == "arm":
+                    if d == "arm" or d == "set arm" or d == "set arm position":
                         command = bytearray()
                         command.append(com_arm_posistion)
                         if v < 40:
