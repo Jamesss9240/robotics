@@ -75,7 +75,7 @@ def encode_num(n):
 comm_setup()
 
 def take_picture():
-    #cv2.namedWindow("Camera")
+
     cap = cv2.VideoCapture(0)
 
 
@@ -86,8 +86,7 @@ def take_picture():
         print("Failed to capture image")
         return None
 
-    #cv2.imshow("Camera", frame)
-    #cv2.waitKey(1)  
+    
     #save to images folder
     images_folder = "images"
     if not os.path.exists(images_folder):
@@ -98,29 +97,7 @@ def take_picture():
     return frame, image_file
     
 
-def rotateToAudio(Lmic, Rmic, Fmic, Bmic, heading):
-    currenthead = heading
-    #find 2 mics with largest sound volume
-    mics = [Lmic, Rmic, Fmic, Bmic]
-    mics.sort(reverse = True)
-    mics = mics[:2]
-    if Bmic and Rmic in mics:
-        
-        currenthead = currenthead - 90
-    elif Bmic and Lmic in mics:
-        
-        currenthead = currenthead + 90
- 
-    side1 =  10**(mics[0]/10)
-    side2 =  10**(mics[1]/10)
-    angleRad = math.degrees(math.acos(side2/side1))
-    angle = angleRad * 180 / math.pi
-    if Lmic == mics[0] or Lmic == mics[1]:
-        currenthead = currenthead + angle
-       
-    else:
-        currenthead = currenthead - angle
-    return currenthead
+
     
 def pictest():
     camera_fov = 90
@@ -128,19 +105,18 @@ def pictest():
 
     ball_found = False
     angle_to_turn = None
-    
-    # give option for take picture or laod image(for debugging)
-    option = 1 #int(input("Choose option (1: Take picture, 2: Load image): "))
 
-    # loads model
+    option = 1 
+
+    #model loading
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model_path = './cnn_hsv_hybrid.pth'  # Path to the hybrid model
     
     try:
-        #load model
+        
         model_data = torch.load(model_path, map_location=device, weights_only=False)
         
-        # extract parameters and model state dictionary
+       #extract model parameters
         model_state_dict = model_data['model_state_dict']
         hsv_params = model_data['hsv_params']
         color_mapping = model_data.get('color_mapping', {})
@@ -166,7 +142,7 @@ def pictest():
                 self.fc = nn.Linear(8*8*32, 4)
                 
             def forward(self, x):
-                # make sure batch is 3d to avoid errors
+                #make sure the batch id is of correct number of dimensionms
                 if x.dim() == 3:
                     x = x.unsqueeze(0) 
                 
@@ -176,14 +152,14 @@ def pictest():
                 out = self.fc(out)
                 return out
                 
-        #load model again
+        #reload model
         model = ConvNet().to(device)
         model.load_state_dict(model_state_dict)
         model.eval()
         
         print("model loaded successfully")
     except Exception as e:
-        print(f"error loading model  {e}")
+        #if model cant load, rely on basic hsv detection (unreliable)
        
         model = None
         hsv_params = {
@@ -199,7 +175,7 @@ def pictest():
             }
         }
     
-    # process image
+    #process image
     transform = transforms.Compose([
         transforms.Resize((32, 32)),
         transforms.ToTensor(),
@@ -217,7 +193,7 @@ def pictest():
         
         hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
-        #create colour detection masks
+        #create colour masks
         mask_red1 = cv2.inRange(hsv_img, hsv_params['red']['lower1'], hsv_params['red']['upper1'])
         mask_red2 = cv2.inRange(hsv_img, hsv_params['red']['lower2'], hsv_params['red']['upper2'])
         mask_red = cv2.bitwise_or(mask_red1, mask_red2)
@@ -225,7 +201,7 @@ def pictest():
     
         mask_blue = cv2.inRange(hsv_img, hsv_params['blue']['lower'], hsv_params['blue']['upper'])
         
-        # reduces image noise to improve accuracy
+        #reduces noise, improves detection capability
         kernel = np.ones((5, 5), np.uint8)
         mask_red = cv2.erode(mask_red, kernel, iterations=1)
         mask_red = cv2.dilate(mask_red, kernel, iterations=2)
@@ -282,7 +258,7 @@ def pictest():
                         
                     cnn_confidence = probabilities[predicted_idx].item() #confidence
             except Exception as e:
-                print(f"Error in CNN prediction: {e}")
+                print(f"Error in CNN prediction")
 
         final_color = 'none'
         final_contour = None
@@ -317,9 +293,9 @@ def pictest():
                 try:
                     images_folder = "images"
                     if not os.path.exists(images_folder):
-                        print(f"Images folder '{images_folder}' not found. Creating it...")
+                        print(f"Images folder not found")
                         os.makedirs(images_folder)
-                        print("Please add images to the folder and run again.")
+                        print("add images inside the folder and try again.")
                         break
                         
                     image_files = [f for f in os.listdir(images_folder) 
@@ -337,7 +313,7 @@ def pictest():
                     frame = cv2.imread(image_path)
                     
                     if frame is None:
-                        print("Failed to load image. Exiting...")
+                        print("Failed to load image.")
                         break
                         
                 except Exception as e:
@@ -348,7 +324,7 @@ def pictest():
                 break
         
         if frame is None:
-            print("No valid frame to process, skipping...")
+            print("No valid frame to process")
             continue
        
         height, width, channels = frame.shape
