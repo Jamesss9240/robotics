@@ -557,6 +557,10 @@ async def main():
 
             if keyword_index >= 0:
                 print("Activation keyword detected!")
+                try:
+                    playsound("digital-bleep.mp3")
+                except Exception as e:
+                    print("Error during playback:", e)
                 understood = False
                 # Record the user’s command after activation.
                 audio_data = record_command_audio()
