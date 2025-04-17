@@ -8,7 +8,6 @@ import torchvision.transforms as transforms
 from PIL import Image
 import RPi.GPIO as GPIO
 import time
-import time
 import pyaudio
 import wave
 from IPython.display import display, Audio
