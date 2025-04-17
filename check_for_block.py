@@ -762,7 +762,7 @@ async def main():
                         send_data(command)
                     if d == "arm" or d == "set arm" or d == "set arm position":
                         command = bytearray()
-                        command.append(com_arm_posistion)
+                        command.append(com_arm_position)
                         if v < 40:
                             v = 40
                         if v > 450:
