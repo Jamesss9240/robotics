@@ -118,7 +118,7 @@ def pictest():
        #extract model parameters
         model_state_dict = model_data['model_state_dict']
         hsv_params = model_data['hsv_params']
-        color_mapping = model_data.get('color_mapping', {})
+        colour_mapping = model_data.get('colour_mapping', {})
       
         class ConvNet(nn.Module):
             def __init__(self):
@@ -184,13 +184,13 @@ def pictest():
     def hybrid_prediction(image, hsv_params, model=None):
         #convert to compatable format
         if isinstance(image, np.ndarray):
-            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            pil_image = Image.fromarray(cv2.cvtColour(image, cv2.COLOR_BGR2RGB))
         else:
             pil_image = image
-            image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+            image = cv2.cvtColour(np.array(pil_image), cv2.COLOR_RGB2BGR)
         
         
-        hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hsv_img = cv2.cvtColour(image, cv2.COLOR_BGR2HSV)
         
         #create colour masks
         mask_red1 = cv2.inRange(hsv_img, hsv_params['red']['lower1'], hsv_params['red']['upper1'])
@@ -215,7 +215,7 @@ def pictest():
         largest_red = max(contours_red, key=cv2.contourArea, default=None) if contours_red else None
         largest_blue = max(contours_blue, key=cv2.contourArea, default=None) if contours_blue else None
         
-        hsv_color = 'none'
+        hsv_colour = 'none'
         hsv_confidence = 0.0
         hsv_contour = None
         
@@ -224,16 +224,16 @@ def pictest():
         blue_area = cv2.contourArea(largest_blue) if largest_blue is not None else 0
         
         if red_area > blue_area and red_area > 100:
-            hsv_color = 'red'
+            hsv_colour = 'red'
             hsv_confidence = red_area / (image.shape[0] * image.shape[1])
             hsv_contour = largest_red
         elif blue_area > red_area and blue_area > 100:
-            hsv_color = 'blue'
+            hsv_colour = 'blue'
             hsv_confidence = blue_area / (image.shape[0] * image.shape[1])
             hsv_contour = largest_blue
         
         #use the cnn to reinforce this, and correct errors that the hsv prediction may have got
-        cnn_color = 'none'
+        cnn_colour = 'none'
         cnn_confidence = 0.0
         
         if model is not None:
@@ -249,31 +249,31 @@ def pictest():
                     
                     #mapping for predictions
                     if predicted_idx == 0:
-                        cnn_color = 'blue' 
+                        cnn_colour = 'blue' 
                     elif predicted_idx == 2:  
-                        cnn_color = 'red'  
+                        cnn_colour = 'red'  
                     else:
-                        cnn_color = 'none'
+                        cnn_colour = 'none'
                         
                     cnn_confidence = probabilities[predicted_idx].item() #confidence
             except Exception as e:
                 print(f"Error in CNN prediction")
 
-        final_color = 'none'
+        final_colour = 'none'
         final_contour = None
         
         if hsv_confidence > 0.05:  
-            final_color = hsv_color
+            final_colour = hsv_colour
             final_contour = hsv_contour
         elif cnn_confidence > 0.7:  
-            final_color = cnn_color
+            final_colour = cnn_colour
           
-            if final_color == 'red' and largest_red is not None:
+            if final_colour == 'red' and largest_red is not None:
                 final_contour = largest_red
-            elif final_color == 'blue' and largest_blue is not None:
+            elif final_colour == 'blue' and largest_blue is not None:
                 final_contour = largest_blue
         
-        return final_color, final_contour, cnn_confidence
+        return final_colour, final_contour, cnn_confidence
     
    
     for i in range(1):
@@ -282,7 +282,7 @@ def pictest():
             try:
                 frame, image_file = take_picture()
                 if frame is None:
-                    print("Failed to capture image, trying again...")
+                    print("Failed to capture image")
                     continue
             except Exception as e:
                 print(f"Error capturing image: {e}")
@@ -304,7 +304,7 @@ def pictest():
                         print(f"No image files found in {images_folder}. Please add some images.")
                         break
                         
-                    print(f"Found {len(image_files)} images. Processing first image...")
+                    print(f"Found {len(image_files)} images. Processing first image")
                     image_file = image_files[0]
                     image_path = os.path.join(images_folder, image_file)
                     
@@ -330,17 +330,17 @@ def pictest():
         image_center_x = width // 2
         
       
-        ball_color, ball_contour, cnn_confidence = hybrid_prediction(frame, hsv_params, model)
+        ball_colour, ball_contour, cnn_confidence = hybrid_prediction(frame, hsv_params, model)
         
      
-        ball_found = ball_contour is not None and ball_color != 'none'
+        ball_found = ball_contour is not None and ball_colour != 'none'
         
 
         display_frame = frame.copy()
         
         if ball_found:
         
-            highlight_color = (0, 255, 0) if ball_color == "red" else (0, 165, 255) 
+            highlight_colour = (0, 255, 0) if ball_colour == "red" else (0, 165, 255) 
             
             
             M = cv2.moments(ball_contour)
@@ -354,7 +354,7 @@ def pictest():
             
             # draw rectangle around the ball
             x, y, w, h = cv2.boundingRect(ball_contour)
-            cv2.rectangle(display_frame, (x, y), (x+w, y+h), highlight_color, 2)
+            cv2.rectangle(display_frame, (x, y), (x+w, y+h), highlight_colour, 2)
             
             # draw centre
             cv2.circle(display_frame, (ball_center_x, ball_center_y), 5, (255, 255, 255), -1)
@@ -412,11 +412,11 @@ def pictest():
                 angle_to_turn = abs(angle_to_turn)
             
             #adds text info to image for debugging
-            text = f"{ball_color} ball: Turn {int(round(angle_to_turn))}° {turn_direction} confidence: = {cnn_confidence}"
-            cv2.putText(display_frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_color, 2)
-            cv2.putText(display_frame, f"Distance: {distance:.0f} mm", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_color, 2)
+            text = f"{ball_colour} ball: Turn {int(round(angle_to_turn))}° {turn_direction} confidence: = {cnn_confidence}"
+            cv2.putText(display_frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_colour, 2)
+            cv2.putText(display_frame, f"Distance: {distance:.0f} mm", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, highlight_colour, 2)
             
-            print(f"{ball_color.capitalize()} ball found in {image_file}! Width: {w}px, Turn {abs(angle_to_turn):.1f} degrees {turn_direction}, Distance: {distance:.0f}mm")
+            print(f"{ball_colour.capitalize()} ball found in {image_file}! Width: {w}px, Turn {abs(angle_to_turn):.1f} degrees {turn_direction}, Distance: {distance:.0f}mm")
             #save image
             output_dir = "processed_images"
             os.makedirs(output_dir, exist_ok=True)
@@ -424,14 +424,14 @@ def pictest():
          
             angle_str = f"{int(round(angle_to_turn))}"
             
-            detection_path = os.path.join(output_dir, f"turn_{angle_str}deg_{ball_color}_{image_file}")
+            detection_path = os.path.join(output_dir, f"turn_{angle_str}deg_{ball_colour}_{image_file}")
             cv2.imwrite(detection_path, display_frame)
-            print(f"{ball_color} ball detection saved as {detection_path}")
+            print(f"{ball_colour} ball detection saved as {detection_path}")
         else:
             cv2.putText(display_frame, "No ball detected", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             print(f"No ball detected in {image_file}")
 
-    return ball_found, angle_to_turn if ball_found else None, ball_color if ball_found else None
+    return ball_found, angle_to_turn if ball_found else None, ball_colour if ball_found else None
 
 # Configuration
 CHUNK = 1024                   # Number of audio samples per frame
