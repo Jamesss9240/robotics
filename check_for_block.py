@@ -94,8 +94,6 @@ def take_picture():
     cv2.imwrite(image_file, frame)
     print(f"Image saved as {image_file}")
     return frame, image_file
-    
-
 
     
 def pictest():
@@ -112,7 +110,6 @@ def pictest():
     model_path = './cnn_hsv_hybrid.pth'  # Path to the hybrid model
     
     try:
-        
         model_data = torch.load(model_path, map_location=device, weights_only=False)
         
        #extract model parameters
@@ -184,13 +181,13 @@ def pictest():
     def hybrid_prediction(image, hsv_params, model=None):
         #convert to compatable format
         if isinstance(image, np.ndarray):
-            pil_image = Image.fromarray(cv2.cvtColour(image, cv2.COLOR_BGR2RGB))
+            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         else:
             pil_image = image
-            image = cv2.cvtColour(np.array(pil_image), cv2.COLOR_RGB2BGR)
+            image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
         
         
-        hsv_img = cv2.cvtColour(image, cv2.COLOR_BGR2HSV)
+        hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
         #create colour masks
         mask_red1 = cv2.inRange(hsv_img, hsv_params['red']['lower1'], hsv_params['red']['upper1'])
@@ -219,7 +216,7 @@ def pictest():
         hsv_confidence = 0.0
         hsv_contour = None
         
-        # use the hsv to  detirimine colour
+        # use the hsv to  determine colour
         red_area = cv2.contourArea(largest_red) if largest_red is not None else 0
         blue_area = cv2.contourArea(largest_blue) if largest_blue is not None else 0
         
